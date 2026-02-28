@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Claim {
+  id        String   @id @default(cuid())
+  text      String
+  createdAt DateTime @default(now())
+
+  sources   Source[]
+  analyses  Analysis[]
+}
+
+model Source {
+  id                String   @id @default(cuid())
+  claimId           String
+  title             String
+  year              Int
+  citationCount     Int
+  studyType         String
+  credibilityWeight Float
+
+  claim Claim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  @@index([claimId])
+}
+
+model Analysis {
+  id                 String   @id @default(cuid())
+  claimId            String
+  misinformationRisk String
+  consensusScore     Float
+  createdAt          DateTime @default(now())
+
+  claim Claim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  @@index([claimId])
+}

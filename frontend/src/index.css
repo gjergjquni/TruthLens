@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-truthlens-gradient text-slate-100 antialiased;
+}
+
+.glass-panel {
+  @apply bg-white/5 border border-white/10 backdrop-blur-xl;
+}
+
+.pill-input {
+  @apply w-full rounded-full bg-white/5 border border-white/10 px-6 py-4 text-base text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/70 shadow-glow-primary transition;
+}
+
+.primary-btn {
+  @apply inline-flex items-center justify-center rounded-full bg-primary px-8 py-3 text-sm font-semibold text-white shadow-glow-primary hover:bg-primary/90 active:scale-[0.97] transition;
+}
+
