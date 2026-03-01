@@ -6,6 +6,10 @@ node_modules/
 .env.local
 .env.*.local
 
+# Local database
+*.db
+*.db-journal
+
 # Build outputs
 dist/
 build/

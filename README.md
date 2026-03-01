@@ -58,7 +58,23 @@ npm run dev
 
 App runs at `http://localhost:5173` and proxies `/api` to the backend.
 
-### 4. Use the app
+App runs at `http://localhost:5173` and proxies `/api` to the backend and `/webhook` to n8n (see below).
+
+### 4. (Optional) n8n integration
+
+Claim analysis can be driven by an **n8n** workflow instead of the backend:
+
+1. Run n8n (e.g. `npx n8n` or Docker) so it listens on `http://localhost:5678`.
+2. Create a **Webhook** trigger in n8n with path `truthlens`, method **POST**, and **Respond to Webhook** enabled.
+3. The frontend sends each claim as a POST to `/webhook/truthlens` with body:
+   - `message` – claim text  
+   - `id` – unique id  
+   - `timestamp` – ISO timestamp  
+4. Your workflow processes the payload and uses **Respond to Webhook** to return an object in the shape `{ "analysis": AnalysisResult }` (or a raw `AnalysisResult`). See `frontend/src/types.ts` for the `AnalysisResult` type.
+
+In development, Vite proxies `/webhook` to `http://localhost:5678`, so no CORS setup is needed. For production, set `VITE_N8N_WEBHOOK_URL` to your n8n webhook URL (e.g. `https://your-n8n.com/webhook/truthlens`).
+
+### 5. Use the app
 
 1. Open `http://localhost:5173`.
 2. Enter a scientific claim in the pill-shaped input (e.g. *"Intermittent fasting improves long-term cardiovascular outcomes in adults."*).
@@ -72,7 +88,7 @@ TruthLens/
 ├── frontend/                 # React (Vite) app
 │   ├── src/
 │   │   ├── components/       # LayoutShell, ClaimInputHero, AnalysisDashboard, CircularConsensusGauge
-│   │   ├── api.ts            # analyzeClaim()
+│   │   ├── api.ts            # analyzeClaim() – sends to n8n webhook with message, id, timestamp
 │   │   ├── types.ts          # AnalysisResult, Source, etc.
 │   │   ├── App.tsx
 │   │   ├── main.tsx
@@ -80,7 +96,7 @@ TruthLens/
 │   ├── index.html
 │   ├── package.json
 │   ├── tailwind.config.cjs
-│   └── vite.config.ts        # proxy /api -> localhost:4000
+│   └── vite.config.ts        # proxy /api -> localhost:4000, /webhook -> localhost:5678 (n8n)
 ├── backend/
 │   ├── prisma/
 │   │   └── schema.prisma     # Claim, Source, Analysis
@@ -99,11 +115,12 @@ TruthLens/
 
 ## Environment variables
 
-| Variable       | Where    | Description |
-|----------------|----------|-------------|
-| `DATABASE_URL` | backend  | PostgreSQL connection string (required) |
-| `PORT`         | backend  | API port (default `4000`) |
-| `NODE_ENV`     | backend  | `development` or `production` |
+| Variable                 | Where    | Description |
+|--------------------------|----------|-------------|
+| `DATABASE_URL`           | backend  | PostgreSQL connection string (required) |
+| `PORT`                   | backend  | API port (default `4000`) |
+| `NODE_ENV`               | backend  | `development` or `production` |
+| `VITE_N8N_WEBHOOK_URL`   | frontend | (Optional) n8n webhook URL. Default in dev: `/webhook/truthlens` (proxied to localhost:5678). |
 
 Copy `backend/.env.example` to `backend/.env` and set `DATABASE_URL`.
 
@@ -120,7 +137,11 @@ Copy `backend/.env.example` to `backend/.env` and set `DATABASE_URL`.
 
 ## API
 
-- **POST /api/claims/analyze**  
+- **POST /webhook/truthlens** (n8n – used by frontend)  
+  Body: `{ "message": "Your claim.", "id": "uuid", "timestamp": "2025-02-28T12:00:00.000Z" }`  
+  Returns: `{ "analysis": AnalysisResult }` or a raw `AnalysisResult` (from n8n Respond to Webhook).
+
+- **POST /api/claims/analyze** (backend)  
   Body: `{ "text": "Your scientific claim here." }`  
   Returns: `{ "analysis": AnalysisResult }` (claim, risk, score, sources, distributions, knowledge gaps, fact/opinion breakdown).
 
