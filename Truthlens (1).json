@@ -1,0 +1,462 @@
+{
+  "name": "Truthlens",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.message }} {{ $json.body.conversation }}",
+        "options": {
+          "systemMessage": "You are the TruthLens Strategist. Your sole purpose is to determine if a user's claim is specific enough for a forensic scientific audit on ArXiv. Option A (Vague): If the claim is too vague and you cant find keywords then, output ONLY: CLARIFY: [Your question]\n\nOption B (Specific): If the claim is ready, output ONLY:\nKEYWORDS: keyword1 keyword2 keyword3\nUSER_MESSAGE: [The original user claim]\nDONT output too much keywords only 3-4 should be enough to find a solution"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -384,
+        -64
+      ],
+      "id": "3806f91f-cd59-4359-b82b-6ad0e6acf411",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "mistral-large-latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        176
+      ],
+      "id": "2dcfe45a-e274-42ee-99ec-ad557bb7b363",
+      "name": "Mistral Cloud Chat Model",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "2Pzucz1IsIlLlODU",
+          "name": "Mistral Cloud account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.body.id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -192,
+        192
+      ],
+      "id": "2377009a-6b6a-4bbe-bd67-5b6c2764d5f3",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Here is the reliability : {{ $json.reliability_score }} the verdict: {{ $json.verdict }} the published: {{ $json.published }} and the analysis: {{ $json.analysis }}",
+        "options": {
+          "systemMessage": "You are the TruthLens™ Universal Auditor. Your goal is to provide a definitive, high-level intelligence briefing on a specific claim. Based on the weight, reliability score analyze everything and come up with a scientific answer.  \n\nSTRICT FORMATTING RULES:\n\nNO MARKDOWN: Do not use #, *, _, or ---.\n\nHEADERS: Use ALL CAPS for section titles followed by a colon (e.g., STATUS:).\n\nSPACING: Use exactly one empty line between sections.\n\nLISTS: Use a simple plus sign (+) for bullet points.\n\nAUTHORITY: Do not use \"AI-speak\" (e.g., \"In this study\"). Speak as a forensic fact-checker.\n\nNo Meta-Commentary: Never say \"I found one paper\" or \"According to the data provided.\" Speak as the authority.\n\nEvidence Pyramid: Categorize the evidence (e.g., Theoretical, Empirical, Peer-Reviewed, or Anecdotal)."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1296,
+        -112
+      ],
+      "id": "5e1361a9-1ba4-4556-bcc7-19b0cd8850ef",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "model": "mistral-large-latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        1392,
+        192
+      ],
+      "id": "13c00abd-1a14-4cef-a1ec-3d8bde6d767e",
+      "name": "Mistral Cloud Chat Model1",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "2Pzucz1IsIlLlODU",
+          "name": "Mistral Cloud account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get the AI Analysis from the previous node\nconst aiAnalysis = $input.first().json.output || \"\";\n\n// 2. Get the Paper Metadata from the Loop node (to get Title and Date)\nconst paperData = $node[\"Loop Over Items\"].json.entry || {};\n\nlet score = 50; // Base \"Neutral\" score\nconst title = paperData.title || \"No Title Found\";\nconst publishedDate = paperData.updated || paperData.published || \"\";\n\n// --- THE MATHEMATICAL AUDIT ---\n\n// A. Recency Boost (2025/2026 = +30, 2023/2024 = +15)\nif (publishedDate.includes('2025') || publishedDate.includes('2026')) {\n  score += 30;\n} else if (publishedDate.includes('2023') || publishedDate.includes('2024')) {\n  score += 15;\n}\n\n// B. Peer Review Boost (If published in a journal)\nif (paperData['arxiv:journal_ref']) {\n  score += 20; \n}\n\n// C. Sentiment Extraction (Does the AI say it supports or refutes?)\nconst isRefuted = aiAnalysis.toLowerCase().includes(\"refutes\");\nconst isSupported = aiAnalysis.toLowerCase().includes(\"supports\");\nconst verdict = isRefuted ? \"Refutes\" : (isSupported ? \"Supports\" : \"Neutral\");\n\n// D. Red Flag Penalty (Penalty if AI mentioned small samples or animals)\nif (aiAnalysis.toLowerCase().includes(\"small sample\") || aiAnalysis.toLowerCase().includes(\"mice\")) {\n  score -= 20;\n}\n\nreturn {\n  title: title,\n  reliability_score: Math.min(Math.max(score, 0), 100), // Cap between 0-100\n  verdict: verdict,\n  published: publishedDate,\n  analysis: aiAnalysis\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        -112
+      ],
+      "id": "d7cc290a-b6ff-4b3f-8d94-eefc00af2e5f",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.xml",
+      "typeVersion": 1,
+      "position": [
+        544,
+        -96
+      ],
+      "id": "16fceaa4-d8fe-4cfc-afec-8d7ef40a0f39",
+      "name": "XML"
+    },
+    {
+      "parameters": {
+        "url": "http://export.arxiv.org/api/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "search_query",
+              "value": "=all:{{ $json.keywords }}"
+            },
+            {
+              "name": "max_results",
+              "value": "10"
+            },
+            {
+              "name": "sortBy",
+              "value": "relevance"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        368,
+        16
+      ],
+      "id": "05aad377-be7b-4b1a-89ce-430d1625b9f6",
+      "name": "HTTP Request1",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        752,
+        -96
+      ],
+      "id": "1c05a98a-a738-4caa-9960-60cc48f15a14",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "model": "mistral-large-latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        864,
+        256
+      ],
+      "id": "60a98add-33e3-463d-9380-fbb1e34eb16f",
+      "name": "Mistral Cloud Chat Model3",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "2Pzucz1IsIlLlODU",
+          "name": "Mistral Cloud account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.feed.entry[0].summary }}",
+        "options": {
+          "systemMessage": "You are a Critical Research Analyst. You will receive one research paper abstract at a time.\n\nYour Task:\n\nDoes this study Support or Refute the user's initial claim?\n\nIdentify Red Flags: Look for small sample sizes, \"preliminary\" results, or lack of peer review or if the study was done on humans, mice, in vitro and based on that give a weight to that kind of study.\n\nGive a 'Reliability Score' (0-100) based on how rigorous the methodology is and uses formal scientific analysis.\n\nOutput your analysis in a structured way."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        896,
+        48
+      ],
+      "id": "e8610536-958e-42f8-b427-0e2d58679b41",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst text = items[0].json.output;\n\n// Nëse mesazhi fillon me CLARIFY, kjo nyje nuk duhet të ekzekutohet (If node e ndalon)\n// Këtu procesojmë vetëm kërkimin\n\ntry {\n  // Nxjerrim rreshtin që fillon me KEYWORDS\n  const keywordsLine = text.match(/KEYWORDS:\\s*(.*)/i)[1];\n  // Nxjerrim rreshtin që fillon me USER_MESSAGE\n  const userMessage = text.match(/USER_MESSAGE:\\s*(.*)/i)[1];\n\n  // Pastrojmë keywords për URL (vetëm fjalë me +)\n  const cleanKeywords = keywordsLine\n    .replace(/,/g, ' ')\n    .trim()\n    .split(/\\s+/)\n    .join(' ');\n\n  return [{\n    json: {\n      keywords: cleanKeywords,\n      user_query: userMessage\n    }\n  }];\n} catch (e) {\n  // Nëse AI nuk ndjek formatin, bëjmë një pastrim bazik\n  return [{\n    json: {\n      keywords: text.substring(0, 30).split(/\\s+/).join(' '),\n      user_query: text\n    }\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        0
+      ],
+      "id": "57d6cbdb-a74f-4e4e-ba1b-8bc9153cd19d",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "truthlens",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -592,
+        -80
+      ],
+      "id": "3df53852-62a0-4f68-be41-58739f99cc1e",
+      "name": "Webhook",
+      "webhookId": "c7f95170-dbab-4b9b-b9bd-6fa77cd3e9b0"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"myField\": {{ $json.output.toJsonString() }} }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1696,
+        -208
+      ],
+      "id": "69390231-71e9-4824-8a36-3611df1bb551",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a1f1cd65-eb66-43ef-89c0-2082d991cc73",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "CLARIFY",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -32,
+        -64
+      ],
+      "id": "4fdd53a4-2fd3-4c80-a257-5cc83b3d8de6",
+      "name": "If"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Mistral Cloud Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "XML": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "XML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2851b5a5-bd04-4c2c-b821-19b8cf34b82e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "eb7baac8d836e7c8a891bf7f3bd2c8ead923592a627d476c5d26d9d8030a0879"
+  },
+  "id": "7oUZneIrOXvd0sCN",
+  "tags": []
+}
